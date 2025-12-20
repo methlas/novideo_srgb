@@ -5,6 +5,8 @@ using EDIDParser;
 using Microsoft.Win32;
 using NvAPIWrapper.Display;
 using NvAPIWrapper.GPU;
+using NvAPIWrapper;
+using NvAPIWrapper.Native.General;
 
 /*
 no NDAs violated here!
@@ -358,18 +360,30 @@ namespace novideo_srgb
 
         static Novideo()
         {
+            NVIDIA.Initialize();
+
+            IntPtr GetInterface(uint id, string name)
+            {
+                var ptr = NvAPI_QueryInterface(id);
+                if (ptr == IntPtr.Zero)
+                {
+                    throw new Exception("NvAPI_QueryInterface returned null for " + name);
+                }
+                return ptr;
+            }
+
             NvAPI_GPU_GetColorSpaceConversion =
                 Marshal.GetDelegateForFunctionPointer<NvAPI_GPU_GetColorSpaceConversion_t>(
-                    NvAPI_QueryInterface(_NvAPI_GPU_GetColorSpaceConversion));
+                    GetInterface(_NvAPI_GPU_GetColorSpaceConversion, nameof(NvAPI_GPU_GetColorSpaceConversion)));
             NvAPI_GPU_SetColorSpaceConversion =
                 Marshal.GetDelegateForFunctionPointer<NvAPI_GPU_SetColorSpaceConversion_t>(
-                    NvAPI_QueryInterface(_NvAPI_GPU_SetColorSpaceConversion));
+                    GetInterface(_NvAPI_GPU_SetColorSpaceConversion, nameof(NvAPI_GPU_SetColorSpaceConversion)));
             NvAPI_GPU_GetDitherControl =
                 Marshal.GetDelegateForFunctionPointer<NvAPI_GPU_GetDitherControl_t>(
-                    NvAPI_QueryInterface(_NvAPI_GPU_GetDitherControl));
+                    GetInterface(_NvAPI_GPU_GetDitherControl, nameof(NvAPI_GPU_GetDitherControl)));
             NvAPI_GPU_SetDitherControl =
                 Marshal.GetDelegateForFunctionPointer<NvAPI_GPU_SetDitherControl_t>(
-                    NvAPI_QueryInterface(_NvAPI_GPU_SetDitherControl));
+                    GetInterface(_NvAPI_GPU_SetDitherControl, nameof(NvAPI_GPU_SetDitherControl)));
         }
     }
 }

@@ -1,11 +1,13 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.Forms.MessageBox;
+using DrawingIcon = System.Drawing.Icon;
 
 namespace novideo_srgb
 {
@@ -95,10 +97,29 @@ namespace novideo_srgb
 
         private void InitializeTrayIcon()
         {
+            DrawingIcon trayIcon = null;
+            try
+            {
+                var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    trayIcon = DrawingIcon.ExtractAssociatedIcon(exePath);
+                }
+            }
+            catch
+            {
+                trayIcon = null;
+            }
+
+            if (trayIcon == null)
+            {
+                trayIcon = SystemIcons.Application;
+            }
+
             var notifyIcon = new NotifyIcon
             {
                 Text = "Novideo sRGB",
-                Icon = Properties.Resources.icon,
+                Icon = trayIcon,
                 Visible = true
             };
 
