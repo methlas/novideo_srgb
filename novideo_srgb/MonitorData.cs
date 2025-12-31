@@ -67,8 +67,23 @@ namespace novideo_srgb
                 White = Colorimetry.D65
             };
 
-            _dither = Novideo.GetDitherControl(_output);
-            _clamped = Novideo.IsColorSpaceConversionActive(_output);
+            try
+            {
+                _dither = Novideo.GetDitherControl(_output);
+            }
+            catch (Exception)
+            {
+                _dither = default;
+            }
+
+            try
+            {
+                _clamped = Novideo.IsColorSpaceConversionActive(_output);
+            }
+            catch (Exception)
+            {
+                _clamped = false;
+            }
 
             ProfilePath = "";
             CustomGamma = 2.2;
@@ -156,7 +171,14 @@ namespace novideo_srgb
         private void HandleClampException(Exception e)
         {
             MessageBox.Show(e.Message);
-            _clamped = Novideo.IsColorSpaceConversionActive(_output);
+            try
+            {
+                _clamped = Novideo.IsColorSpaceConversionActive(_output);
+            }
+            catch (Exception)
+            {
+                // Keep last known state if NVAPI query fails.
+            }
             ClampSdr = _clamped;
             _viewModel.SaveConfig();
             OnPropertyChanged(nameof(Clamped));

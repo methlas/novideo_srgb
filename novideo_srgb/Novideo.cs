@@ -71,6 +71,7 @@ namespace novideo_srgb
         private const uint _NvAPI_GPU_SetColorSpaceConversion = 0x0FCABD23A;
         private const uint _NvAPI_GPU_SetDitherControl = 0x0DF0DFCDD;
         private const uint _NvAPI_GPU_GetDitherControl = 0x932AC8FB;
+        private const int NvapiNotSupported = -104;
 
         [DllImport("nvapi64", EntryPoint = "nvapi_QueryInterface")]
         private static extern IntPtr NvAPI_QueryInterface(uint id);
@@ -180,7 +181,68 @@ namespace novideo_srgb
             var status = NvAPI_GPU_SetColorSpaceConversion(displayId, ref csc);
             if (status != 0)
             {
+                if (status == NvapiNotSupported)
+                {
+                    SetColorSpaceConversionV2(output, conversion);
+                    return;
+                }
+
                 throw new Exception("NvAPI_GPU_SetColorSpaceConversion failed with error code " + status);
+            }
+        }
+
+        private static unsafe void SetColorSpaceConversionV2(GPUOutput output, ColorSpaceConversion conversion)
+        {
+            var displayId = output.PhysicalGPU.GetDisplayDeviceByOutput(output).DisplayId;
+
+            // Identity LUTs to satisfy V2 requirements on newer drivers.
+            var gamma = new float[2, 1024, 3];
+            for (var i = 0; i < 1024; i++)
+            {
+                var value = i / 1023f;
+                for (var j = 0; j < 3; j++)
+                {
+                    gamma[0, i, j] = value;
+                    gamma[1, i, j] = value;
+                }
+            }
+
+            fixed (float* buffer = gamma)
+            {
+                var csc = new Csc
+                {
+                    version = 0x200A0,
+                    contentColorSpace = conversion.contentColorSpace,
+                    monitorColorSpace = conversion.monitorColorSpace,
+                    degamma = buffer,
+                    regamma = buffer + 0x3000 / sizeof(float),
+                    buffer = buffer,
+                    bufferSize = 0x6000,
+                };
+
+                for (var i = 0; i < 3; i++)
+                {
+                    for (var j = 0; j < 4; j++)
+                    {
+                        if (conversion.matrix1 != null)
+                        {
+                            csc.useMatrix1 = 1;
+                            csc.matrix1[i * 4 + j] = conversion.matrix1[i, j];
+                        }
+
+                        if (conversion.matrix2 != null)
+                        {
+                            csc.useMatrix2 = 1;
+                            csc.matrix2[i * 4 + j] = conversion.matrix2[i, j];
+                        }
+                    }
+                }
+
+                var status = NvAPI_GPU_SetColorSpaceConversion(displayId, ref csc);
+                if (status != 0)
+                {
+                    throw new Exception("NvAPI_GPU_SetColorSpaceConversion (V2) failed with error code " + status);
+                }
             }
         }
 
